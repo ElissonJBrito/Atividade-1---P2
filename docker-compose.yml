@@ -1,0 +1,39 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: appuser
+      RABBITMQ_DEFAULT_PASS: apppass
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    environment:
+      RABBITMQ_URL: amqp://appuser:apppass@rabbitmq:5672/
+      QUEUE_NAME: mensagens
+    ports:
+      - "8000:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  consumer:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    environment:
+      RABBITMQ_URL: amqp://appuser:apppass@rabbitmq:5672/
+      QUEUE_NAME: mensagens
+    command: ["python", "consumer.py"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
